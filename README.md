@@ -299,9 +299,9 @@ This project is licensed under the MIT License.
 
 ---
 
-## Author
+## Developers/collaborator
 
-**Aditya**
+**Aditya** , **Yashasvi** , **Sushik** , **Deepak** , **SriKrishna**
 
 ---
 
