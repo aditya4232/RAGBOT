@@ -10,21 +10,22 @@ model = None
 note_embeddings = None
 notes = None
 
+
 def initialize_model():
     global model, note_embeddings, notes
     if model is None:
         from sentence_transformers import SentenceTransformer
-        from sklearn.metrics.pairwise import cosine_similarity
-        import numpy as np
-        
+
+        # Load the embedding model (CPU by default)
         model = SentenceTransformer("all-MiniLM-L6-v2")
-        
-        # Load notes
-        with open("notes.txt") as f:
-            notes = f.readlines()
-        
-        # Create embeddings (INGESTION)
+
+        # Load notes from file
+        with open("notes.txt", encoding="utf-8") as f:
+            notes = [line.strip() for line in f.readlines() if line.strip()]
+
+        # Create embeddings (INGESTION) - converts text to vectors
         note_embeddings = model.encode(notes)
+
 
 app = FastAPI()
 
@@ -40,8 +41,10 @@ app.add_middleware(
 # Cloud API URL
 CLOUD_API_URL = "https://gpt4.apisimpacientes.workers.dev/chat"
 
+
 class Question(BaseModel):
     question: str
+
 
 @app.get("/health")
 def health_check():
@@ -51,20 +54,21 @@ def health_check():
         "status": "ok",
         "model_loaded": model is not None,
         "notes_loaded": notes is not None,
-        "notes_count": len(notes) if notes else 0
+        "notes_count": len(notes) if notes else 0,
     }
+
 
 @app.post("/ask")
 def ask_qna(data: Question):
     try:
         initialize_model()
-        
+
         from sklearn.metrics.pairwise import cosine_similarity
         import numpy as np
-        
+
         print(f"Processing question: {data.question}")
         print(f"Notes loaded: {notes is not None}, count: {len(notes) if notes else 0}")
-        
+
         # Check if notes are available
         if not notes or len(notes) == 0:
             return {
@@ -73,46 +77,57 @@ def ask_qna(data: Question):
                 "answer": "No notes available",
                 "similarity_score": 0.0,
                 "confidence": "none",
-                "error": "No notes loaded"
+                "error": "No notes loaded",
             }
-        
+
         q_embedding = model.encode([data.question])
         similarities = cosine_similarity(q_embedding, note_embeddings)
         best_match = np.argmax(similarities)
         best_similarity = float(similarities[0][best_match])
 
         context = notes[best_match].strip()
-        
+
         print(f"Best match index: {best_match}, similarity: {best_similarity}")
         print(f"Context length: {len(context)}")
-        
+
         # Ensure we always return something from notes
         if not context:
-            context = notes[best_match] if best_match < len(notes) else "Unable to retrieve note"
+            context = (
+                notes[best_match]
+                if best_match < len(notes)
+                else "Unable to retrieve note"
+            )
 
         response = {
             "question": data.question,
             "retrieved_text": context,
             "answer": context,
             "similarity_score": best_similarity,
-            "confidence": "high" if best_similarity > 0.5 else "medium" if best_similarity > 0.3 else "low"
+            "confidence": "high"
+            if best_similarity > 0.5
+            else "medium"
+            if best_similarity > 0.3
+            else "low",
         }
-        
+
         print(f"Returning response: {list(response.keys())}")
         return response
     except Exception as e:
         print(f"Error in ask_qna: {str(e)}")
         import traceback
+
         traceback.print_exc()
         # Fallback: return first note if anything fails
-        fallback_text = notes[0].strip() if notes and len(notes) > 0 else "Error retrieving notes"
+        fallback_text = (
+            notes[0].strip() if notes and len(notes) > 0 else "Error retrieving notes"
+        )
         return {
             "question": data.question,
             "retrieved_text": fallback_text,
             "answer": fallback_text,
             "similarity_score": 0.0,
             "confidence": "low",
-            "error": f"Processing error: {str(e)}"
+            "error": f"Processing error: {str(e)}",
         }
 
 
@@ -138,4 +153,5 @@ if os.path.exists(frontend_path):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

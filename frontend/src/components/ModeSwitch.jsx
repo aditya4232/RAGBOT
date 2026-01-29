@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-
 function ModeSwitch({ mode, onModeChange }) {
   const handleToggle = () => {
     const newMode = mode === 'local' ? 'cloud' : 'local';

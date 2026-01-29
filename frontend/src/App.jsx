@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ModeSwitch from './components/ModeSwitch';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -36,6 +36,7 @@ function App() {
       let responseText = '';
       let source = mode;
       let confidence = '';
+      let similarityScore = null;
 
       if (mode === 'local') {
         // Local RAG endpoint
@@ -68,7 +69,12 @@ function App() {
           confidence = data.confidence;
         }
         
-        console.log('Response Text:', responseText, 'Confidence:', confidence);
+        // Add similarity score if available
+        if (data.similarity_score !== undefined) {
+          similarityScore = data.similarity_score;
+        }
+        
+        console.log('Response Text:', responseText, 'Confidence:', confidence, 'Score:', similarityScore);
       } else {
         // Cloud API endpoint (proxied through FastAPI)
         const response = await fetch(`/chat?prompt=${encodeURIComponent(content)}`);
@@ -101,6 +107,7 @@ function App() {
         timestamp: new Date().toISOString(),
         source,
         confidence,
+        similarityScore,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);

@@ -20,6 +20,26 @@ function ChatMessage({ message }) {
     });
   };
 
+  // Calculate percentage from similarity score (0 to 1 -> 0% to 100%)
+  const getScorePercentage = () => {
+    if (message.similarityScore === null || message.similarityScore === undefined) {
+      return null;
+    }
+    return Math.round(message.similarityScore * 100);
+  };
+
+  // Get confidence level color class
+  const getConfidenceClass = () => {
+    const score = message.similarityScore;
+    if (score === null || score === undefined) return '';
+    if (score > 0.5) return 'high';
+    if (score > 0.3) return 'medium';
+    return 'low';
+  };
+
+  const scorePercentage = getScorePercentage();
+  const confidenceClass = getConfidenceClass();
+
   return (
     <div className={`message ${message.role}`}>
       <div className="message-header">
@@ -51,9 +71,32 @@ function ChatMessage({ message }) {
           </button>
         )}
       </div>
+      
+      {/* Similarity Score Progress Bar - Only for Local RAG responses */}
+      {message.role === 'assistant' && message.source === 'local' && scorePercentage !== null && (
+        <div className="similarity-section">
+          <div className="similarity-bar-container">
+            <div 
+              className={`similarity-bar ${confidenceClass}`}
+              style={{ width: `${scorePercentage}%` }}
+            ></div>
+          </div>
+          <span className="similarity-percentage">{scorePercentage}% Match</span>
+        </div>
+      )}
+      
       <div className="message-content">
         {message.content}
       </div>
+      
+      {/* Confidence Badge - Only for Local RAG responses */}
+      {message.role === 'assistant' && message.source === 'local' && message.confidence && (
+        <div className="confidence-badge-container">
+          <span className={`confidence-badge ${confidenceClass}`}>
+            Confidence: {message.confidence.toUpperCase()}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
